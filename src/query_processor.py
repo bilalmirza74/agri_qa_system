@@ -301,11 +301,12 @@ class QueryProcessor:
             
         for key in data:
             if not data[key].empty:
-                data[key].columns = [str(col).lower() for col in data[key].columns]
+                data[key].columns = [str(col).strip().lower() for col in data[key].columns]
             
         for source_name, df in data.items():
             if not df.empty:
-                df.columns = [str(col).lower() for col in df.columns]
+                for col in df.select_dtypes(include=['object']).columns:
+                    df[col] = df[col].astype(str).str.strip()
                 
                 answer_parts.append(f"Found {len(df)} records of market prices.")
                 sources.append({
@@ -315,39 +316,56 @@ class QueryProcessor:
                 })
                 
                 if entities.get('comparison') and len(entities.get('states', [])) >= 2:
-                    state1, state2 = entities['states'][:2]
-                    answer_parts.append(f"\nComparison between {state1} and {state2}:")
+                    state1, state2 = [s.strip().lower() for s in entities['states'][:2]]
+                    answer_parts.append(f"\nComparison between {state1.title()} and {state2.title()}:")
                     
-                    state_col = next((col for col in df.columns if 'state' in col.lower()), None)
-                    if state_col:
-                        state1_data = df[df[state_col].str.lower() == state1.lower()]
-                        state2_data = df[df[state_col].str.lower() == state2.lower()]
+                    state_col = next((col for col in df.columns if 'state' in col.lower() or 'statename' in col.lower()), None)
+                    
+                    if state_col and state_col in df.columns:
+                        state1_data = df[df[state_col].str.lower() == state1]
+                        state2_data = df[df[state_col].str.lower() == state2]
                     else:
                         state1_data = pd.DataFrame()
                         state2_data = pd.DataFrame()
                         answer_parts.append("Warning: Could not find state column in the data.")
                     
-                    commodity_col = next((col for col in df.columns if 'commodity' in col.lower() or 'crop' in col.lower()), 'commodity')
+                    commodity_col = next(
+                        (col for col in df.columns 
+                         if any(x in col.lower() for x in ['commodity', 'crop', 'cropname'])), 
+                        'commodity'
+                    )
                     
                     if commodity_col in df.columns:
-                        df[commodity_col] = df[commodity_col].astype(str)
-                        commodities = [c for c in df[commodity_col].unique() if c and c.lower() != 'nan']
+                        df[commodity_col] = df[commodity_col].str.lower().str.strip()
+                        commodities = [c for c in df[commodity_col].unique() if c and c != 'nan']
                     else:
                         commodities = []
                         answer_parts.append("Warning: Could not find commodity/crop column in the data.")
                     
-                    for commodity in entities.get('crops', []) or (commodities[:3] if len(commodities) > 0 else []):
-                        comm_data = df[df[commodity_col].str.lower() == commodity.lower()]
-                        if comm_data.empty:
+                    requested_crops = [c.lower().strip() for c in entities.get('crops', [])]
+                    crops_to_show = requested_crops or commodities[:3]
+                    
+                    for commodity in crops_to_show:
+                        if not commodity:
                             continue
                             
-                        answer_parts.append(f"\n{commodity}:")
+                        comm_data = df[df[commodity_col] == commodity.lower()]
+                        if comm_data.empty:
+                            answer_parts.append(f"\nNo data found for {commodity.title()}")
+                            continue
+                            
+                        answer_parts.append(f"\n{commodity.title()}:")
                         
-                        price_columns = {
-                            'min': next((col for col in df.columns if col.lower() in ['min_price', 'minprice', 'min price']), 'min_price'),
-                            'max': next((col for col in df.columns if col.lower() in ['max_price', 'maxprice', 'max price']), 'max_price'),
-                            'modal': next((col for col in df.columns if col.lower() in ['modal_price', 'modalprice', 'modal price']), 'modal_price')
-                        }
+                        price_columns = {}
+                        for price_type in ['min', 'max', 'modal']:
+                            col = next(
+                                (col for col in df.columns 
+                                 if any(x in col.lower() 
+                                     for x in [f"{price_type}_price", f"{price_type}price", f"{price_type} price"])
+                                ),
+                                f"{price_type}_price"
+                            )
+                            price_columns[price_type] = col
                         
                         for price_type in entities.get('price_types', []):
                             if price_type == 'min':
