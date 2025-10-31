@@ -260,12 +260,16 @@ class QueryProcessor:
                 if query.get('order_by') and not df.empty:
                     order_by = query['order_by']
                     if isinstance(order_by, list):
-                        order_by = [col.lower() for col in order_by if isinstance(col, str)]
-                        order_by = [col for col in order_by if col in df.columns]
+                        df_columns_lower = {col.lower(): col for col in df.columns}
+                        order_by = [df_columns_lower[col.lower()] 
+                                  for col in order_by 
+                                  if isinstance(col, str) and col.lower() in df_columns_lower]
                         if order_by:
                             df = df.sort_values(by=order_by)
-                    elif isinstance(order_by, str) and order_by.lower() in df.columns:
-                        df = df.sort_values(by=order_by.lower())
+                    elif isinstance(order_by, str):
+                        matching_cols = [col for col in df.columns if col.lower() == order_by.lower()]
+                        if matching_cols:
+                            df = df.sort_values(by=matching_cols[0])
                 
                 if query.get('limit') and not df.empty:
                     try:
@@ -304,12 +308,18 @@ class QueryProcessor:
                     'description': 'Government dataset: Agricultural Market Prices'
                 })
                 
-                if entities['comparison'] and len(entities['states']) >= 2:
+                if entities.get('comparison') and len(entities.get('states', [])) >= 2:
                     state1, state2 = entities['states'][:2]
                     answer_parts.append(f"\nComparison between {state1} and {state2}:")
                     
-                    state1_data = df[df['State'] == state1]
-                    state2_data = df[df['State'] == state2]
+                    state_col = next((col for col in df.columns if col.lower() == 'state'), None)
+                    if state_col:
+                        state1_data = df[df[state_col].str.lower() == state1.lower()]
+                        state2_data = df[df[state_col].str.lower() == state2.lower()]
+                    else:
+                        state1_data = pd.DataFrame()
+                        state2_data = pd.DataFrame()
+                        answer_parts.append("Warning: Could not find state column in the data.")
                     
                     commodities = df['Commodity'].unique()
                     
