@@ -299,8 +299,14 @@ class QueryProcessor:
                 sources=sources
             )
             
+        for key in data:
+            if not data[key].empty:
+                data[key].columns = [str(col).lower() for col in data[key].columns]
+            
         for source_name, df in data.items():
             if not df.empty:
+                df.columns = [str(col).lower() for col in df.columns]
+                
                 answer_parts.append(f"Found {len(df)} records of market prices.")
                 sources.append({
                     'name': 'data.gov.in - Agricultural Market Prices',
@@ -312,7 +318,7 @@ class QueryProcessor:
                     state1, state2 = entities['states'][:2]
                     answer_parts.append(f"\nComparison between {state1} and {state2}:")
                     
-                    state_col = next((col for col in df.columns if col.lower() == 'state'), None)
+                    state_col = next((col for col in df.columns if 'state' in col.lower()), None)
                     if state_col:
                         state1_data = df[df[state_col].str.lower() == state1.lower()]
                         state2_data = df[df[state_col].str.lower() == state2.lower()]
@@ -321,14 +327,14 @@ class QueryProcessor:
                         state2_data = pd.DataFrame()
                         answer_parts.append("Warning: Could not find state column in the data.")
                     
-                    # Find commodity column case-insensitively
-                    commodity_col = next((col for col in df.columns if col.lower() == 'commodity'), 'commodity')
+                    commodity_col = next((col for col in df.columns if 'commodity' in col.lower() or 'crop' in col.lower()), 'commodity')
                     
                     if commodity_col in df.columns:
-                        commodities = df[commodity_col].unique()
+                        df[commodity_col] = df[commodity_col].astype(str)
+                        commodities = [c for c in df[commodity_col].unique() if c and c.lower() != 'nan']
                     else:
                         commodities = []
-                        answer_parts.append("Warning: Could not find commodity column in the data.")
+                        answer_parts.append("Warning: Could not find commodity/crop column in the data.")
                     
                     for commodity in entities.get('crops', []) or (commodities[:3] if len(commodities) > 0 else []):
                         comm_data = df[df[commodity_col].str.lower() == commodity.lower()]
@@ -337,7 +343,6 @@ class QueryProcessor:
                             
                         answer_parts.append(f"\n{commodity}:")
                         
-                        # Find price columns case-insensitively
                         price_columns = {
                             'min': next((col for col in df.columns if col.lower() in ['min_price', 'minprice', 'min price']), 'min_price'),
                             'max': next((col for col in df.columns if col.lower() in ['max_price', 'maxprice', 'max price']), 'max_price'),
