@@ -550,7 +550,72 @@ class QueryProcessor:
         """
         try:
             entities = self._extract_entities(query)
+            query_lower = query.lower()
             
+            # Check if this is a production comparison query
+            is_production_query = ('production' in query_lower or 'crop' in query_lower) and entities.get('comparison')
+            
+            if is_production_query and len(entities.get('states', [])) >= 2 and entities.get('crops'):
+                # Handle production comparison queries directly
+                states = entities['states']
+                crops = entities['crops']
+                crop = crops[0].capitalize()
+                
+                # Fetch agriculture data for the states
+                df = self.data_loader.get_agriculture_data(
+                    state=None,  # Get all states data
+                    crop=crop,
+                    limit=10000
+                )
+                
+                if df.empty:
+                    return QueryResult(
+                        answer=f"I couldn't find any production data for {crop}.",
+                        sources=[{"name": "Ministry of Agriculture & Farmers Welfare", "url": "https://data.gov.in"}]
+                    )
+                
+                # Filter and compare states
+                state1, state2 = states[0].capitalize(), states[1].capitalize()
+                df['state'] = df['state'].str.title()
+                
+                state1_data = df[df['state'].str.contains(state1, case=False, na=False)]
+                state2_data = df[df['state'].str.contains(state2, case=False, na=False)]
+                
+                if state1_data.empty or state2_data.empty:
+                    return QueryResult(
+                        answer=f"Could not find production data for {state1} and/or {state2}.",
+                        sources=[{"name": "Ministry of Agriculture & Farmers Welfare", "url": "https://data.gov.in"}]
+                    )
+                
+                # Calculate production statistics
+                state1_prod = state1_data['production'].sum() if 'production' in state1_data.columns else 0
+                state2_prod = state2_data['production'].sum() if 'production' in state2_data.columns else 0
+                
+                # Create response
+                answer_parts = [f"\n**{crop} Production Comparison:**\n"]
+                answer_parts.append(f"- {state1}: {state1_prod:,.2f} (tons/MT)")
+                answer_parts.append(f"- {state2}: {state2_prod:,.2f} (tons/MT)")
+                
+                if state1_prod > 0 and state2_prod > 0:
+                    ratio = state1_prod / state2_prod
+                    if ratio > 1:
+                        answer_parts.append(f"- {state1} produces {ratio:.2f}x more {crop.lower()} than {state2}")
+                    else:
+                        answer_parts.append(f"- {state2} produces {1/ratio:.2f}x more {crop.lower()} than {state1}")
+                
+                comparison_df = pd.DataFrame({
+                    'State': [state1, state2],
+                    'Crop': [crop, crop],
+                    'Total_Production': [state1_prod, state2_prod]
+                })
+                
+                return QueryResult(
+                    answer='\n'.join(answer_parts),
+                    data=comparison_df,
+                    sources=[{"name": "Ministry of Agriculture & Farmers Welfare", "url": "https://data.gov.in"}]
+                )
+            
+            # Get help message if no entities found
             agri_data = self.data_loader.get_agriculture_data(
                 state=None,
                 year=None,
