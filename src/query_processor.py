@@ -211,23 +211,26 @@ class QueryProcessor:
                     end_date=query.get('end_date')
                 )
                 
+                # Normalize column names to lowercase for case-insensitive comparison
+                df.columns = [col.lower() for col in df.columns]
+                
                 if query.get('where'):
                     for where_clause in query['where']:
-                        if 'State' in where_clause:
+                        if 'state' in where_clause.lower():
                             states = [s.strip() for s in where_clause.split('=')[1].strip("()").split('OR')]
                             states = [s.strip(" '\"") for s in states]
-                            if not df.empty and 'State' in df.columns:
-                                df = df[df['State'].isin(states)]
-                        elif 'District' in where_clause:
+                            if not df.empty and 'state' in df.columns:
+                                df = df[df['state'].str.lower().isin([s.lower() for s in states])]
+                        elif 'district' in where_clause.lower():
                             districts = [d.strip() for d in where_clause.split('=')[1].strip("()").split('OR')]
                             districts = [d.strip(" '\"") for d in districts]
-                            if not df.empty and 'District' in df.columns:
-                                df = df[df['District'].isin(districts)]
-                        elif 'Commodity' in where_clause:
+                            if not df.empty and 'district' in df.columns:
+                                df = df[df['district'].str.lower().isin([d.lower() for d in districts])]
+                        elif 'commodity' in where_clause.lower():
                             crops = [c.strip() for c in where_clause.split('=')[1].strip("()").split('OR')]
                             crops = [c.strip(" '\"") for c in crops]
-                            if not df.empty and 'Commodity' in df.columns:
-                                df = df[df['Commodity'].str.lower().isin([c.lower() for c in crops])]
+                            if not df.empty and 'commodity' in df.columns:
+                                df = df[df['commodity'].str.lower().isin([c.lower() for c in crops])]
                 
                 if query.get('order_by') and not df.empty:
                     order_by = query['order_by']

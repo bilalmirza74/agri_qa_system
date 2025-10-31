@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import sys
+from data_loader import DataLoader, DataGovINLoader
+from query_processor import QueryProcessor
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
@@ -10,8 +12,6 @@ project_root = str(Path(__file__).parent.parent)
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from data_loader import DataLoader, DataGovINLoader, DataSource
-from query_processor import QueryProcessor
 
 load_dotenv()
 
