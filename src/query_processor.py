@@ -231,23 +231,28 @@ class QueryProcessor:
                 if query.get('where') and not df.empty:
                     filtered_dfs = []
                     for where_clause in query['where']:
-                        if 'state' in where_clause.lower() and 'state' in df.columns:
+                        where_clause_lower = where_clause.lower()
+                        
+                        if 'state' in where_clause_lower and 'state' in df.columns:
                             states = [s.strip().strip(" '\"") for s in where_clause.split('=')[1].strip("()").split('OR')]
-                            filtered = df[df['state'].str.lower().isin([s.lower() for s in states])]
-                            if not filtered.empty:
-                                filtered_dfs.append(filtered)
+                            if states:
+                                filtered = df[df['state'].str.lower().isin([s.lower() for s in states])]
+                                if not filtered.empty:
+                                    filtered_dfs.append(filtered)
                         
-                        if 'district' in where_clause.lower() and 'district' in df.columns:
+                        if 'district' in where_clause_lower and 'district' in df.columns:
                             districts = [d.strip().strip(" '\"") for d in where_clause.split('=')[1].strip("()").split('OR')]
-                            filtered = df[df['district'].str.lower().isin([d.lower() for d in districts])]
-                            if not filtered.empty:
-                                filtered_dfs.append(filtered)
+                            if districts:
+                                filtered = df[df['district'].str.lower().isin([d.lower() for d in districts])]
+                                if not filtered.empty:
+                                    filtered_dfs.append(filtered)
                         
-                        if 'commodity' in where_clause.lower() and 'commodity' in df.columns:
+                        if 'commodity' in where_clause_lower and 'commodity' in df.columns:
                             crops = [c.strip().strip(" '\"") for c in where_clause.split('=')[1].strip("()").split('OR')]
-                            filtered = df[df['commodity'].str.lower().isin([c.lower() for c in crops])]
-                            if not filtered.empty:
-                                filtered_dfs.append(filtered)
+                            if crops:
+                                filtered = df[df['commodity'].str.lower().isin([c.lower() for c in crops])]
+                                if not filtered.empty:
+                                    filtered_dfs.append(filtered)
                     
                     if filtered_dfs:
                         df = pd.concat(filtered_dfs).drop_duplicates()
@@ -255,21 +260,25 @@ class QueryProcessor:
                 if query.get('order_by') and not df.empty:
                     order_by = query['order_by']
                     if isinstance(order_by, list):
+                        order_by = [col.lower() for col in order_by if isinstance(col, str)]
                         order_by = [col for col in order_by if col in df.columns]
                         if order_by:
                             df = df.sort_values(by=order_by)
-                    elif order_by in df.columns:
-                        df = df.sort_values(by=order_by)
+                    elif isinstance(order_by, str) and order_by.lower() in df.columns:
+                        df = df.sort_values(by=order_by.lower())
                 
                 if query.get('limit') and not df.empty:
-                    df = df.head(int(query['limit']))
+                    try:
+                        df = df.head(int(query['limit']))
+                    except (ValueError, TypeError):
+                        pass
                 
                 results['market_prices'] = df
                 
         except Exception as e:
             logger.error(f"Error executing query: {str(e)}")
             logger.exception(e)
-            raise ValueError(f"Error processing your query. Please try again with different parameters.")
+            raise ValueError(f"Error processing your query: {str(e)}. Please try again with different parameters.")
             
         return results
     
