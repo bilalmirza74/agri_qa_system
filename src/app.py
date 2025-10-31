@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 import sys
-from data_loader import DataLoader, DataGovINLoader
-from query_processor import QueryProcessor
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
@@ -12,6 +10,8 @@ project_root = str(Path(__file__).parent.parent)
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+from data_loader import DataLoader, DataGovINLoader, DataSource
+from query_processor import QueryProcessor
 
 load_dotenv()
 
@@ -192,9 +192,8 @@ def main():
         This is an intelligent Q&A system for Indian agricultural and climate data.
 
         ### Examples
-        - Show me Banana prices in Andhra Pradesh
-        - Compare rice prices between Punjab and Haryana
-        - What are the maximum prices for Tomato?
+        - Show me the top 5 crops by production in Maharashtra
+        - What was the rainfall in Karnataka in 2020?
 
         ### Data Sources
         - Ministry of Agriculture & Farmers Welfare
