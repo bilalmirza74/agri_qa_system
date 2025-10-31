@@ -232,10 +232,8 @@ class QueryProcessor:
                 if df is None or df.empty:
                     return {'market_prices': pd.DataFrame()}
                 
-                # Normalize column names: lowercase and strip whitespace
                 df.columns = [str(col).strip().lower() for col in df.columns]
                 
-                # Map common column name variations to standard names
                 column_mapping = {
                     'state_name': 'state',
                     'state_nm': 'state',
@@ -254,7 +252,6 @@ class QueryProcessor:
                     'area': 'area'
                 }
                 
-                # Apply column name mapping
                 df = df.rename(columns=lambda x: column_mapping.get(x.lower().strip(), x.lower().strip()))
                 
                 if query.get('where') and not df.empty:
@@ -294,7 +291,6 @@ class QueryProcessor:
                                   for col in order_by 
                                   if isinstance(col, str) and col.lower() in df_columns_lower]
                         if order_by:
-                            # Find the first available state column
                             state_cols = [col for col in ['state', 'state_name', 'state_nm'] if col in df.columns]
                             sort_column = state_cols[0] if state_cols else df.columns[0]
                             df = df.sort_values(by=sort_column, key=lambda x: x.astype(str).str.lower())
@@ -355,7 +351,6 @@ class QueryProcessor:
                     
                     print("\nAvailable columns in the data:", df.columns.tolist())
                     
-                    # First, try to find state column with case-insensitive match
                     state_col = next(
                         (col for col in df.columns 
                          if any(x in col.lower() for x in ['state', 'statename', 'state_name', 'state name'])),
@@ -365,23 +360,18 @@ class QueryProcessor:
                     if state_col and state_col in df.columns:
                         print(f"Using state column: {state_col}")
                         
-                        # Ensure the state column is treated as string and handle NaN values
                         df[state_col] = df[state_col].astype(str).str.lower().str.strip()
                         
-                        # Clean the state names in the dataframe
                         df['_state_clean'] = df[state_col].str.lower().str.strip()
                         
-                        # Clean the input state names for comparison
                         state1_clean = state1.lower().strip()
                         state2_clean = state2.lower().strip()
                         
-                        # Get data for each state (case-insensitive match)
                         state1_data = df[df['_state_clean'] == state1_clean]
                         state2_data = df[df['_state_clean'] == state2_clean]
                         
                         print(f"Found {len(state1_data)} records for {state1} and {len(state2_data)} records for {state2}")
                         
-                        # If no data found, try a more flexible match
                         if len(state1_data) == 0 or len(state2_data) == 0:
                             print("No exact matches found, trying partial matches...")
                             state1_data = df[df[state_col].str.contains(state1_clean, case=False, na=False)]
@@ -394,7 +384,6 @@ class QueryProcessor:
                         print("Warning: Could not find state column in the data.")
                         print("Available columns:", df.columns.tolist())
                     
-                    # Find commodity/crop column with flexible matching
                     commodity_col = next(
                         (col for col in df.columns 
                          if any(x in col.lower() for x in ['commodity', 'crop', 'cropname', 'crop_name', 'crop name'])), 
@@ -403,10 +392,8 @@ class QueryProcessor:
                     
                     if commodity_col and commodity_col in df.columns:
                         print(f"Using commodity column: {commodity_col}")
-                        # Clean the commodity column
                         df[commodity_col] = df[commodity_col].astype(str).str.lower().str.strip()
                         
-                        # Get unique commodities, excluding empty/NA values
                         commodities = [c for c in df[commodity_col].unique() 
                                      if c and c.lower() not in ['nan', 'none', '']]
                         
@@ -437,13 +424,12 @@ class QueryProcessor:
                             
                         answer_parts.append(f"\n{commodity.title()}:")
                         
-                        # Optimized price column matching
                         price_columns = {}
                         lower_cols = [col.lower() for col in df.columns]
                         for price_type in ['min', 'max', 'modal']:
                             for i, col in enumerate(lower_cols):
                                 if any(term in col for term in [f"{price_type}_price", f"{price_type} price", f"{price_type}price"]):
-                                    price_columns[price_type] = df.columns[i]  # Use original column name
+                                    price_columns[price_type] = df.columns[i]  
                                     break
                                 print(f"Using {price_type} price column: {col}")
                         

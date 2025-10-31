@@ -7,8 +7,9 @@ import plotly.express as px
 import streamlit as st
 from dotenv import load_dotenv
 project_root = str(Path(__file__).parent.parent)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+src_path = str(Path(__file__).parent)
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
 
 from data_loader import DataLoader, DataGovINLoader, DataSource
 from query_processor import QueryProcessor
