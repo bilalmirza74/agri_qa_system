@@ -37,7 +37,6 @@ class QueryProcessor:
             'commodity': self._extract_commodities
         }
         
-        # Initialize entity caches
         self._init_entity_caches()
     
     def _init_entity_caches(self):
@@ -383,13 +382,12 @@ class QueryProcessor:
                             
                         answer_parts.append(f"\n{commodity.title()}:")
                         
-                        # Optimized price column matching
                         price_columns = {}
                         lower_cols = [col.lower() for col in df.columns]
                         for price_type in ['min', 'max', 'modal']:
                             for i, col in enumerate(lower_cols):
                                 if any(term in col for term in [f"{price_type}_price", f"{price_type} price", f"{price_type}price"]):
-                                    price_columns[price_type] = df.columns[i]  # Use original column name
+                                    price_columns[price_type] = df.columns[i] 
                                     break
                                 print(f"Using {price_type} price column: {col}")
                         

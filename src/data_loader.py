@@ -106,7 +106,7 @@ class DataGovINLoader:
             ValueError: If the response cannot be parsed as JSON
         """
         if not hasattr(self.config, 'RESOURCE_IDS') or not self.config.RESOURCE_IDS:
-            self.config = APIConfig()  # Reinitialize config if needed
+            self.config = APIConfig()
             
         if data_source not in self.config.RESOURCE_IDS:
             raise ValueError(f"Unsupported data source: {data_source}")
@@ -215,7 +215,9 @@ class DataGovINLoader:
             
             df = pd.DataFrame(records)
             
-            self.logger.info(f"Columns in response: {df.columns.tolist()}")
+            df.columns = df.columns.str.strip().str.lower()
+            
+            self.logger.info(f"Normalized columns in response: {df.columns.tolist()}")
             
             column_mapping = {
                 'state_name': 'state',
@@ -289,10 +291,12 @@ class DataGovINLoader:
         
         if not data.get('records'):
             return pd.DataFrame()
-            
+                
         df = pd.DataFrame(data['records'])
         
-        reverse_map = {v: k for k, v in field_map.items()}
+        df.columns = df.columns.str.strip().str.lower()
+        
+        reverse_map = {v.lower(): k for k, v in field_map.items()}
         df = df.rename(columns=reverse_map)
         
         if 'rainfall' in df.columns:
@@ -330,7 +334,9 @@ class DataGovINLoader:
             
         df = pd.DataFrame(data['records'])
         
-        reverse_map = {v: k for k, v in field_map.items()}
+        df.columns = df.columns.str.strip().str.lower()
+        
+        reverse_map = {v.lower(): k for k, v in field_map.items()}
         df = df.rename(columns=reverse_map)
         
         price_cols = ['min_price', 'max_price', 'modal_price']
@@ -489,7 +495,7 @@ class DataLoader:
                     error_data = e.response.json()
                     error_msg += f"\nError: {error_data.get('message', 'No error message')}"
                 except (ValueError, AttributeError, KeyError):
-                    error_msg += f"\nResponse: {e.response.text[:500] if hasattr(e.response, 'text') else 'No response text'}"  # Truncate long responses
+                    error_msg += f"\nResponse: {e.response.text[:500] if hasattr(e.response, 'text') else 'No response text'}" 
             
             logger.error(error_msg)
             raise requests.HTTPError(error_msg) from e
