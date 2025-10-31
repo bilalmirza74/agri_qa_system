@@ -302,6 +302,7 @@ class QueryProcessor:
         for key in data:
             if not data[key].empty:
                 data[key].columns = [str(col).strip().lower() for col in data[key].columns]
+                print(f"Columns in {key}:", data[key].columns.tolist())
             
         for source_name, df in data.items():
             if not df.empty:
@@ -315,43 +316,63 @@ class QueryProcessor:
                     'description': 'Government dataset: Agricultural Market Prices'
                 })
                 
+                print("Sample data:", df.head().to_dict(orient='records'))
+                
                 if entities.get('comparison') and len(entities.get('states', [])) >= 2:
                     state1, state2 = [s.strip().lower() for s in entities['states'][:2]]
                     answer_parts.append(f"\nComparison between {state1.title()} and {state2.title()}:")
                     
-                    state_col = next((col for col in df.columns if 'state' in col.lower() or 'statename' in col.lower()), None)
+                    print("\nAvailable columns in the data:", df.columns.tolist())
+                    
+                    state_col = next(
+                        (col for col in df.columns 
+                         if any(x in col.lower() for x in ['state', 'statename', 'state_name', 'state name'])),
+                        None
+                    )
                     
                     if state_col and state_col in df.columns:
-                        state1_data = df[df[state_col].str.lower() == state1]
-                        state2_data = df[df[state_col].str.lower() == state2]
+                        print(f"Using state column: {state_col}")
+                        df['_state_lower'] = df[state_col].str.lower()
+                        state1_data = df[df['_state_lower'] == state1.lower()]
+                        state2_data = df[df['_state_lower'] == state2.lower()]
+                        
+                        print(f"Found {len(state1_data)} records for {state1} and {len(state2_data)} records for {state2}")
                     else:
                         state1_data = pd.DataFrame()
                         state2_data = pd.DataFrame()
                         answer_parts.append("Warning: Could not find state column in the data.")
+                        print("Warning: Could not find state column in the data.")
                     
                     commodity_col = next(
                         (col for col in df.columns 
-                         if any(x in col.lower() for x in ['commodity', 'crop', 'cropname'])), 
-                        'commodity'
+                         if any(x in col.lower() for x in ['commodity', 'crop', 'cropname', 'crop_name'])), 
+                        None
                     )
                     
-                    if commodity_col in df.columns:
-                        df[commodity_col] = df[commodity_col].str.lower().str.strip()
-                        commodities = [c for c in df[commodity_col].unique() if c and c != 'nan']
+                    if commodity_col and commodity_col in df.columns:
+                        print(f"Using commodity column: {commodity_col}")
+                        df[commodity_col] = df[commodity_col].astype(str).str.lower().str.strip()
+                        commodities = [c for c in df[commodity_col].unique() if c and c != 'nan' and c != 'none']
+                        print(f"Found {len(commodities)} unique commodities")
                     else:
                         commodities = []
                         answer_parts.append("Warning: Could not find commodity/crop column in the data.")
+                        print("Warning: Could not find commodity/crop column in the data.")
                     
                     requested_crops = [c.lower().strip() for c in entities.get('crops', [])]
                     crops_to_show = requested_crops or commodities[:3]
+                    
+                    print(f"Processing crops: {crops_to_show}")
                     
                     for commodity in crops_to_show:
                         if not commodity:
                             continue
                             
-                        comm_data = df[df[commodity_col] == commodity.lower()]
+                        comm_data = df[df[commodity_col].str.lower() == commodity.lower()]
+                        
                         if comm_data.empty:
                             answer_parts.append(f"\nNo data found for {commodity.title()}")
+                            print(f"No data found for {commodity}")
                             continue
                             
                         answer_parts.append(f"\n{commodity.title()}:")
@@ -361,11 +382,15 @@ class QueryProcessor:
                             col = next(
                                 (col for col in df.columns 
                                  if any(x in col.lower() 
-                                     for x in [f"{price_type}_price", f"{price_type}price", f"{price_type} price"])
+                                     for x in [f"{price_type}_price", f"{price_type}price", 
+                                              f"{price_type} price", f"{price_type}", 
+                                              f"price_{price_type}"])
                                 ),
-                                f"{price_type}_price"
+                                None
                             )
-                            price_columns[price_type] = col
+                            if col:
+                                price_columns[price_type] = col
+                                print(f"Using {price_type} price column: {col}")
                         
                         for price_type in entities.get('price_types', []):
                             if price_type == 'min':
