@@ -355,6 +355,7 @@ class QueryProcessor:
                     
                     print("\nAvailable columns in the data:", df.columns.tolist())
                     
+                    # First, try to find state column with case-insensitive match
                     state_col = next(
                         (col for col in df.columns 
                          if any(x in col.lower() for x in ['state', 'statename', 'state_name', 'state name'])),
@@ -363,32 +364,60 @@ class QueryProcessor:
                     
                     if state_col and state_col in df.columns:
                         print(f"Using state column: {state_col}")
-                        df['_state_lower'] = df[state_col].str.lower()
-                        state1_data = df[df['_state_lower'] == state1.lower()]
-                        state2_data = df[df['_state_lower'] == state2.lower()]
+                        
+                        # Ensure the state column is treated as string and handle NaN values
+                        df[state_col] = df[state_col].astype(str).str.lower().str.strip()
+                        
+                        # Clean the state names in the dataframe
+                        df['_state_clean'] = df[state_col].str.lower().str.strip()
+                        
+                        # Clean the input state names for comparison
+                        state1_clean = state1.lower().strip()
+                        state2_clean = state2.lower().strip()
+                        
+                        # Get data for each state (case-insensitive match)
+                        state1_data = df[df['_state_clean'] == state1_clean]
+                        state2_data = df[df['_state_clean'] == state2_clean]
                         
                         print(f"Found {len(state1_data)} records for {state1} and {len(state2_data)} records for {state2}")
+                        
+                        # If no data found, try a more flexible match
+                        if len(state1_data) == 0 or len(state2_data) == 0:
+                            print("No exact matches found, trying partial matches...")
+                            state1_data = df[df[state_col].str.contains(state1_clean, case=False, na=False)]
+                            state2_data = df[df[state_col].str.contains(state2_clean, case=False, na=False)]
+                            print(f"After partial match: {len(state1_data)} records for {state1}, {len(state2_data)} for {state2}")
                     else:
                         state1_data = pd.DataFrame()
                         state2_data = pd.DataFrame()
                         answer_parts.append("Warning: Could not find state column in the data.")
                         print("Warning: Could not find state column in the data.")
+                        print("Available columns:", df.columns.tolist())
                     
+                    # Find commodity/crop column with flexible matching
                     commodity_col = next(
                         (col for col in df.columns 
-                         if any(x in col.lower() for x in ['commodity', 'crop', 'cropname', 'crop_name'])), 
+                         if any(x in col.lower() for x in ['commodity', 'crop', 'cropname', 'crop_name', 'crop name'])), 
                         None
                     )
                     
                     if commodity_col and commodity_col in df.columns:
                         print(f"Using commodity column: {commodity_col}")
+                        # Clean the commodity column
                         df[commodity_col] = df[commodity_col].astype(str).str.lower().str.strip()
-                        commodities = [c for c in df[commodity_col].unique() if c and c != 'nan' and c != 'none']
+                        
+                        # Get unique commodities, excluding empty/NA values
+                        commodities = [c for c in df[commodity_col].unique() 
+                                     if c and c.lower() not in ['nan', 'none', '']]
+                        
                         print(f"Found {len(commodities)} unique commodities")
+                        print(f"Sample commodities: {commodities[:5]}")
                     else:
                         commodities = []
-                        answer_parts.append("Warning: Could not find commodity/crop column in the data.")
-                        print("Warning: Could not find commodity/crop column in the data.")
+                        warning_msg = "Warning: Could not find commodity/crop column in the data."
+                        answer_parts.append(warning_msg)
+                        print(warning_msg)
+                        print("Available columns:", df.columns.tolist())
                     
                     requested_crops = [c.lower().strip() for c in entities.get('crops', [])]
                     crops_to_show = requested_crops or commodities[:3]
