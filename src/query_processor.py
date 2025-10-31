@@ -564,30 +564,36 @@ class QueryProcessor:
                 states = entities['states']
                 crops = entities['crops']
                 crop = crops[0].capitalize()
+                state1, state2 = states[0].capitalize(), states[1].capitalize()
                 
-                # Fetch agriculture data for the states
-                df = self.data_loader.get_agriculture_data(
-                    state=None,  # Get all states data
+                # Fetch agriculture data for each state separately (faster than fetching all)
+                state1_data = self.data_loader.get_agriculture_data(
+                    state=state1,
                     crop=crop,
-                    limit=10000
+                    limit=5000
                 )
                 
-                if df.empty:
+                state2_data = self.data_loader.get_agriculture_data(
+                    state=state2,
+                    crop=crop,
+                    limit=5000
+                )
+                
+                if state1_data.empty and state2_data.empty:
                     return QueryResult(
-                        answer=f"I couldn't find any production data for {crop}.",
+                        answer=f"I couldn't find any production data for {crop} in {state1} or {state2}.",
                         sources=[{"name": "Ministry of Agriculture & Farmers Welfare", "url": "https://data.gov.in"}]
                     )
                 
-                # Filter and compare states
-                state1, state2 = states[0].capitalize(), states[1].capitalize()
-                df['state'] = df['state'].str.title()
-                
-                state1_data = df[df['state'].str.contains(state1, case=False, na=False)]
-                state2_data = df[df['state'].str.contains(state2, case=False, na=False)]
-                
-                if state1_data.empty or state2_data.empty:
+                if state1_data.empty:
                     return QueryResult(
-                        answer=f"Could not find production data for {state1} and/or {state2}.",
+                        answer=f"Could not find production data for {crop} in {state1}.",
+                        sources=[{"name": "Ministry of Agriculture & Farmers Welfare", "url": "https://data.gov.in"}]
+                    )
+                
+                if state2_data.empty:
+                    return QueryResult(
+                        answer=f"Could not find production data for {crop} in {state2}.",
                         sources=[{"name": "Ministry of Agriculture & Farmers Welfare", "url": "https://data.gov.in"}]
                     )
                 

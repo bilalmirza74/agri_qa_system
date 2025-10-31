@@ -117,16 +117,28 @@ class DataGovINLoader:
             
         url = f"{self.config.BASE_URL}/{resource_id}"
         
-        params = params or {}
-        params.update({
+        # Build request params correctly
+        request_params = params.copy() if params else {}
+        request_params.update({
             'format': 'json',
-            'api-key': self.api_key,
-            'limit': 1000,
-            'filters': json.dumps(params.get('filters', {}))
+            'api-key': self.api_key
         })
+        # Set default limit if not already set
+        if 'limit' not in request_params:
+            request_params['limit'] = 1000
+        
+        # Handle filters properly - convert to filters[field_name] format
+        if 'filters' in request_params and request_params['filters']:
+            filters_dict = request_params.pop('filters')
+            # Convert filters dict to filters[field_name] format
+            for key, value in filters_dict.items():
+                if value is not None:
+                    if isinstance(value, (list, tuple)):
+                        value = ','.join(map(str, value))
+                    request_params[f'filters[{key}]'] = str(value)
         
         self.logger.info(f"Making API request to: {url}")
-        self.logger.info(f"Params: {params}")
+        self.logger.info(f"Params: {request_params}")
         
         try:
             response = requests.get(
@@ -135,7 +147,7 @@ class DataGovINLoader:
                     'accept': 'application/json',
                     'X-API-KEY': self.api_key
                 },
-                params=params,
+                params=request_params,
                 timeout=30
             )
             response.raise_for_status()
@@ -196,24 +208,47 @@ class DataGovINLoader:
         if season:
             filters['season'] = season
             
-        params = {
-            'limit': min(limit, 10000),
-            'filters': filters
-        }
+        # Fetch data with pagination
+        all_records = []
+        page_size = 10  # API appears to limit to 10 records per request
+        max_pages = min(limit // page_size + 1, 1000) if limit else 1000  # Safety limit
         
-        self.logger.info(f"Fetching agriculture data with params: {params}")
+        self.logger.info(f"Fetching agriculture data with filters: {filters}, limit: {limit}")
         
         try:
-            response = self._make_api_request(DataSource.CROP_PRODUCTION, params)
+            for offset in range(0, max_pages * page_size, page_size):
+                params = {
+                    'limit': page_size,
+                    'offset': offset,
+                    'filters': filters
+                }
+                
+                response = self._make_api_request(DataSource.CROP_PRODUCTION, params)
+                
+                if not response or 'records' not in response or not response['records']:
+                    break
+                
+                page_records = response['records']
+                all_records.extend(page_records)
+                
+                self.logger.info(f"Received {len(page_records)} records at offset {offset}")
+                
+                # If we got fewer than page_size, we've reached the end
+                if len(page_records) < page_size:
+                    break
+                
+                # Check if we've reached the requested limit
+                if limit and len(all_records) >= limit:
+                    all_records = all_records[:limit]
+                    break
             
-            if not response or 'records' not in response or not response['records']:
+            self.logger.info(f"Total records fetched: {len(all_records)}")
+            
+            if not all_records:
                 self.logger.warning("No records found in API response")
                 return pd.DataFrame()
-                
-            records = response['records']
-            self.logger.info(f"Received {len(records)} records from API")
             
-            df = pd.DataFrame(records)
+            df = pd.DataFrame(all_records)
             
             self.logger.info(f"Columns in response: {df.columns.tolist()}")
             
