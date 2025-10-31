@@ -37,6 +37,7 @@ class QueryProcessor:
             'commodity': self._extract_commodities
         }
         
+        # Initialize entity caches
         self._init_entity_caches()
     
     def _init_entity_caches(self):
@@ -231,7 +232,30 @@ class QueryProcessor:
                 if df is None or df.empty:
                     return {'market_prices': pd.DataFrame()}
                 
-                df.columns = [str(col).lower() for col in df.columns]
+                # Normalize column names: lowercase and strip whitespace
+                df.columns = [str(col).strip().lower() for col in df.columns]
+                
+                # Map common column name variations to standard names
+                column_mapping = {
+                    'state_name': 'state',
+                    'state_nm': 'state',
+                    'district_name': 'district',
+                    'district_nm': 'district',
+                    'crop_name': 'crop',
+                    'commodity_name': 'commodity',
+                    'min_price': 'min_price',
+                    'max_price': 'max_price',
+                    'modal_price': 'modal_price',
+                    'price': 'price',
+                    'date': 'date',
+                    'year': 'year',
+                    'season': 'season',
+                    'production': 'production',
+                    'area': 'area'
+                }
+                
+                # Apply column name mapping
+                df = df.rename(columns=lambda x: column_mapping.get(x.lower().strip(), x.lower().strip()))
                 
                 if query.get('where') and not df.empty:
                     filtered_dfs = []
@@ -270,7 +294,9 @@ class QueryProcessor:
                                   for col in order_by 
                                   if isinstance(col, str) and col.lower() in df_columns_lower]
                         if order_by:
-                            sort_column = 'state' if 'state' in df.columns else df.columns[0]
+                            # Find the first available state column
+                            state_cols = [col for col in ['state', 'state_name', 'state_nm'] if col in df.columns]
+                            sort_column = state_cols[0] if state_cols else df.columns[0]
                             df = df.sort_values(by=sort_column, key=lambda x: x.astype(str).str.lower())
                     elif isinstance(order_by, str):
                         matching_cols = [col for col in df.columns if col.lower() == order_by.lower()]
@@ -382,12 +408,13 @@ class QueryProcessor:
                             
                         answer_parts.append(f"\n{commodity.title()}:")
                         
+                        # Optimized price column matching
                         price_columns = {}
                         lower_cols = [col.lower() for col in df.columns]
                         for price_type in ['min', 'max', 'modal']:
                             for i, col in enumerate(lower_cols):
                                 if any(term in col for term in [f"{price_type}_price", f"{price_type} price", f"{price_type}price"]):
-                                    price_columns[price_type] = df.columns[i] 
+                                    price_columns[price_type] = df.columns[i]  # Use original column name
                                     break
                                 print(f"Using {price_type} price column: {col}")
                         
