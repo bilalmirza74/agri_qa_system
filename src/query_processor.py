@@ -566,17 +566,17 @@ class QueryProcessor:
                 crop = crops[0].capitalize()
                 state1, state2 = states[0].capitalize(), states[1].capitalize()
                 
-                # Fetch agriculture data for each state separately (faster than fetching all)
+                # Fetch agriculture data for each state separately (limited to reasonable number for speed)
                 state1_data = self.data_loader.get_agriculture_data(
                     state=state1,
                     crop=crop,
-                    limit=5000
+                    limit=100  # Reduced for speed - 100 records = ~10 API calls
                 )
                 
                 state2_data = self.data_loader.get_agriculture_data(
                     state=state2,
                     crop=crop,
-                    limit=5000
+                    limit=100  # Reduced for speed
                 )
                 
                 if state1_data.empty and state2_data.empty:
