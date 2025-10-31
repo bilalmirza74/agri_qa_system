@@ -265,7 +265,8 @@ class QueryProcessor:
                                   for col in order_by 
                                   if isinstance(col, str) and col.lower() in df_columns_lower]
                         if order_by:
-                            df = df.sort_values(by=order_by)
+                            sort_column = 'state' if 'state' in df.columns else df.columns[0]
+                            df = df.sort_values(by=sort_column, key=lambda x: x.astype(str).str.lower())
                     elif isinstance(order_by, str):
                         matching_cols = [col for col in df.columns if col.lower() == order_by.lower()]
                         if matching_cols:
@@ -438,8 +439,8 @@ class QueryProcessor:
                             logger.warning(f"Error calculating {desc}: {e}")
                     
                     try:
-                        if not df.empty and 'Modal_Price' in df.columns:
-                            top_commodities = df.groupby('Commodity')['Modal_Price'].mean().nlargest(3)
+                        if not df.empty and commodity_col and price_columns.get('modal') in df.columns:
+                            top_commodities = df.groupby(commodity_col)[price_columns['modal']].mean().nlargest(3)
                             if not top_commodities.empty:
                                 answer_parts.append("\nTop commodities by average price:")
                                 for commodity, price in top_commodities.items():
