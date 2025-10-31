@@ -175,17 +175,17 @@ class QueryProcessor:
         
         try:
             if entities.get('states'):
-                query['state'] = entities['states'][0]  # Take first state if multiple
+                query['state'] = entities['states'][0] 
                 states = [f"state = '{state}'" for state in entities['states']]
                 query['where'].append(f"({' OR '.join(states)})")
                 
             if entities.get('districts'):
-                query['district'] = entities['districts'][0]  # Take first district if multiple
+                query['district'] = entities['districts'][0] 
                 districts = [f"district = '{district}'" for district in entities['districts']]
                 query['where'].append(f"({' OR '.join(districts)})")
                 
             if entities.get('crops'):
-                query['commodity'] = entities['crops'][0]  # Take first crop if multiple
+                query['commodity'] = entities['crops'][0] 
                 crops = [f"commodity = '{crop}'" for crop in entities['crops']]
                 query['where'].append(f"({' OR '.join(crops)})")
             
@@ -204,33 +204,53 @@ class QueryProcessor:
         
         try:
             if 'market_prices' in query.get('from', []):
+                state = query.get('state')
+                commodity = query.get('commodity')
+                
+                if query.get('where'):
+                    for where_clause in query['where']:
+                        if 'state' in where_clause.lower() and not state:
+                            states = [s.strip() for s in where_clause.split('=')[1].strip("()").split('OR')]
+                            state = states[0].strip(" '\"") if states else None
+                        elif 'commodity' in where_clause.lower() and not commodity:
+                            crops = [c.strip() for c in where_clause.split('=')[1].strip("()").split('OR')]
+                            commodity = crops[0].strip(" '\"") if crops else None
+                
                 df = self.data_loader.get_market_prices(
-                    commodity=query.get('commodity'),
-                    state=query.get('state'),
+                    commodity=commodity,
+                    state=state,
                     start_date=query.get('start_date'),
                     end_date=query.get('end_date')
                 )
                 
-                # Normalize column names to lowercase for case-insensitive comparison
-                df.columns = [col.lower() for col in df.columns]
+                if df is None or df.empty:
+                    return {'market_prices': pd.DataFrame()}
                 
-                if query.get('where'):
+                df.columns = [str(col).lower() for col in df.columns]
+                
+                if query.get('where') and not df.empty:
+                    filtered_dfs = []
                     for where_clause in query['where']:
-                        if 'state' in where_clause.lower():
-                            states = [s.strip() for s in where_clause.split('=')[1].strip("()").split('OR')]
-                            states = [s.strip(" '\"") for s in states]
-                            if not df.empty and 'state' in df.columns:
-                                df = df[df['state'].str.lower().isin([s.lower() for s in states])]
-                        elif 'district' in where_clause.lower():
-                            districts = [d.strip() for d in where_clause.split('=')[1].strip("()").split('OR')]
-                            districts = [d.strip(" '\"") for d in districts]
-                            if not df.empty and 'district' in df.columns:
-                                df = df[df['district'].str.lower().isin([d.lower() for d in districts])]
-                        elif 'commodity' in where_clause.lower():
-                            crops = [c.strip() for c in where_clause.split('=')[1].strip("()").split('OR')]
-                            crops = [c.strip(" '\"") for c in crops]
-                            if not df.empty and 'commodity' in df.columns:
-                                df = df[df['commodity'].str.lower().isin([c.lower() for c in crops])]
+                        if 'state' in where_clause.lower() and 'state' in df.columns:
+                            states = [s.strip().strip(" '\"") for s in where_clause.split('=')[1].strip("()").split('OR')]
+                            filtered = df[df['state'].str.lower().isin([s.lower() for s in states])]
+                            if not filtered.empty:
+                                filtered_dfs.append(filtered)
+                        
+                        if 'district' in where_clause.lower() and 'district' in df.columns:
+                            districts = [d.strip().strip(" '\"") for d in where_clause.split('=')[1].strip("()").split('OR')]
+                            filtered = df[df['district'].str.lower().isin([d.lower() for d in districts])]
+                            if not filtered.empty:
+                                filtered_dfs.append(filtered)
+                        
+                        if 'commodity' in where_clause.lower() and 'commodity' in df.columns:
+                            crops = [c.strip().strip(" '\"") for c in where_clause.split('=')[1].strip("()").split('OR')]
+                            filtered = df[df['commodity'].str.lower().isin([c.lower() for c in crops])]
+                            if not filtered.empty:
+                                filtered_dfs.append(filtered)
+                    
+                    if filtered_dfs:
+                        df = pd.concat(filtered_dfs).drop_duplicates()
                 
                 if query.get('order_by') and not df.empty:
                     order_by = query['order_by']
@@ -242,14 +262,14 @@ class QueryProcessor:
                         df = df.sort_values(by=order_by)
                 
                 if query.get('limit') and not df.empty:
-                    df = df.head(query['limit'])
+                    df = df.head(int(query['limit']))
                 
                 results['market_prices'] = df
                 
         except Exception as e:
             logger.error(f"Error executing query: {str(e)}")
             logger.exception(e)
-            raise ValueError(f"Error processing your query: {str(e)}")
+            raise ValueError(f"Error processing your query. Please try again with different parameters.")
             
         return results
     
