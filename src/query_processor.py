@@ -321,33 +321,48 @@ class QueryProcessor:
                         state2_data = pd.DataFrame()
                         answer_parts.append("Warning: Could not find state column in the data.")
                     
-                    commodities = df['Commodity'].unique()
+                    # Find commodity column case-insensitively
+                    commodity_col = next((col for col in df.columns if col.lower() == 'commodity'), 'commodity')
                     
-                    for commodity in entities['crops'] or commodities[:3]:
-                        comm_data = df[df['Commodity'].str.lower() == commodity.lower()]
+                    if commodity_col in df.columns:
+                        commodities = df[commodity_col].unique()
+                    else:
+                        commodities = []
+                        answer_parts.append("Warning: Could not find commodity column in the data.")
+                    
+                    for commodity in entities.get('crops', []) or (commodities[:3] if len(commodities) > 0 else []):
+                        comm_data = df[df[commodity_col].str.lower() == commodity.lower()]
                         if comm_data.empty:
                             continue
                             
                         answer_parts.append(f"\n{commodity}:")
                         
-                        for price_type in entities['price_types']:
+                        # Find price columns case-insensitively
+                        price_columns = {
+                            'min': next((col for col in df.columns if col.lower() in ['min_price', 'minprice', 'min price']), 'min_price'),
+                            'max': next((col for col in df.columns if col.lower() in ['max_price', 'maxprice', 'max price']), 'max_price'),
+                            'modal': next((col for col in df.columns if col.lower() in ['modal_price', 'modalprice', 'modal price']), 'modal_price')
+                        }
+                        
+                        for price_type in entities.get('price_types', []):
                             if price_type == 'min':
-                                price_col = 'Min_Price'
+                                price_col = price_columns['min']
                                 desc = 'minimum price'
                             elif price_type == 'max':
-                                price_col = 'Max_Price'
+                                price_col = price_columns['max']
                                 desc = 'maximum price'
                             else: 
-                                price_col = 'Modal_Price'
+                                price_col = price_columns['modal']
                                 desc = 'modal price'
                             
                             try:
-                                price1 = state1_data[price_col].mean()
-                                price2 = state2_data[price_col].mean()
-                                
-                                if not pd.isna(price1) and not pd.isna(price2):
-                                    answer_parts.append(
-                                        f"- Average {desc}: {state1} = ₹{price1:.2f}, {state2} = ₹{price2:.2f}"
+                                if price_col in state1_data.columns and price_col in state2_data.columns:
+                                    price1 = state1_data[price_col].mean()
+                                    price2 = state2_data[price_col].mean()
+                                    
+                                    if not pd.isna(price1) and not pd.isna(price2):
+                                        answer_parts.append(
+                                            f"- Average {desc}: {state1} = ₹{price1:.2f}, {state2} = ₹{price2:.2f}"
                                     )
                             except Exception as e:
                                 logger.warning(f"Error calculating {desc}: {e}")
