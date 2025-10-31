@@ -435,14 +435,18 @@ class QueryProcessor:
                         
                         for price_type in entities.get('price_types', []):
                             if price_type == 'min':
-                                price_col = price_columns['min']
+                                price_col = price_columns.get('min')
                                 desc = 'minimum price'
                             elif price_type == 'max':
-                                price_col = price_columns['max']
+                                price_col = price_columns.get('max')
                                 desc = 'maximum price'
                             else: 
-                                price_col = price_columns['modal']
+                                price_col = price_columns.get('modal')
                                 desc = 'modal price'
+                            
+                            if not price_col:
+                                logger.warning(f"No {price_type} price column found for comparison")
+                                continue
                             
                             try:
                                 if price_col in state1_data.columns and price_col in state2_data.columns:
