@@ -1,0 +1,11 @@
+state,district,market,commodity,variety,grade,arrival_date,min_price,max_price,modal_price
+Andhra Pradesh,Chittor,Madanapalli,Tomato,Other,FAQ,31/10/2025,1300,1800,1600
+Andhra Pradesh,Chittor,Palamaner,Brinjal,Brinjal,FAQ,31/10/2025,2000,4000,3000
+Andhra Pradesh,Chittor,Palamaner,Cabbage,Cabbage,FAQ,31/10/2025,600,1000,800
+Andhra Pradesh,Chittor,Palamaner,Cluster beans,Cluster Beans,FAQ,31/10/2025,3000,5000,4000
+Andhra Pradesh,Chittor,Palamaner,Ridgeguard(Tori),Ridgeguard(Tori),FAQ,31/10/2025,2000,4000,3000
+Andhra Pradesh,Chittor,Punganur,Tomato,Hybrid,FAQ,31/10/2025,1270,1800,1540
+Andhra Pradesh,Chittor,Tirupati,Banana,Bhushavali(Pacha),Small,31/10/2025,7500,10000,8500
+Andhra Pradesh,Cuddapah,Cuddapah,Groundnut,Local,Non-FAQ,31/10/2025,4099,4099,4099
+Andhra Pradesh,East Godavari,Ravulapelem,Banana,Karpura,Large,31/10/2025,2600,3800,3400
+Andhra Pradesh,Guntur,Pidugurala(Palnadu),Dry Chillies,1st Sort,FAQ,31/10/2025,9500,14800,13000

@@ -1,0 +1,12 @@
+README.md
+setup.py
+agri_qa_system.egg-info/PKG-INFO
+agri_qa_system.egg-info/SOURCES.txt
+agri_qa_system.egg-info/dependency_links.txt
+agri_qa_system.egg-info/requires.txt
+agri_qa_system.egg-info/top_level.txt
+src/__init__.py
+src/__main__.py
+src/app.py
+src/data_loader.py
+src/query_processor.py
