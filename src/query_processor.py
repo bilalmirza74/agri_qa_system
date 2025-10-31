@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import re
 import logging
 import pandas as pd
@@ -14,11 +14,10 @@ class QueryResult:
     """Container for query results with metadata."""
     answer: str
     data: Optional[pd.DataFrame] = None
-    sources: List[Dict[str, str]] = None
+    sources: List[Dict[str, str]] = field(default_factory=list)
     visualization: Optional[Dict[str, Any]] = None
-
-    visualizations: List[Dict[str, Any]] = None
-    metadata: Dict[str, Any] = None
+    visualizations: List[Dict[str, Any]] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 class QueryProcessor:
     """Processes natural language queries and generates responses using data from DataGovINLoader."""
@@ -193,7 +192,7 @@ class QueryProcessor:
                 query['order_by'].append('state')
                 
         except Exception as e:
-            self.logger.error(f"Error generating SQL query: {str(e)}")
+            logger.error(f"Error generating SQL query: {str(e)}")
             raise ValueError(f"Error processing your query. Please try again with different parameters.")
             
         return query
