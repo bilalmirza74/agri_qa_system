@@ -1,4 +1,4 @@
-import os
+                                                                                                                                                                                                                                                                                                                                                                                                                                        import os
 import requests
 import pandas as pd
 from typing import Dict, List, Optional, Any
@@ -39,7 +39,7 @@ class APIConfig:
             'year': 'crop_year',
             'season': 'season',
             'crop': 'crop',
-            'area': 'area_',
+            'area': 'area_',                                                                                                                                                                                                                                                                                        
             'production': 'production_',
             'yield_value': 'yield_'
         },
@@ -90,6 +90,7 @@ class DataGovINLoader:
         self.data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
         os.makedirs(self.data_dir, exist_ok=True)
         self.logger = logging.getLogger(__name__)
+        self.cache = {}  # Simple in-memory cache for API responses
     
     def _make_api_request(self, data_source: DataSource, params: dict = None) -> dict:
         """Make a request to the data.gov.in API
@@ -137,6 +138,12 @@ class DataGovINLoader:
                         value = ','.join(map(str, value))
                     request_params[f'filters[{key}]'] = str(value)
         
+        # Check cache first
+        cache_key = str((data_source, tuple(sorted(request_params.items()))))
+        if cache_key in self.cache:
+            self.logger.info(f"Cache hit for {cache_key[:50]}...")
+            return self.cache[cache_key]
+        
         self.logger.info(f"Making API request to: {url}")
         self.logger.info(f"Params: {request_params}")
         
@@ -148,7 +155,7 @@ class DataGovINLoader:
                     'X-API-KEY': self.api_key
                 },
                 params=request_params,
-                timeout=30
+                timeout=60  # Increased timeout
             )
             response.raise_for_status()
             
@@ -160,6 +167,10 @@ class DataGovINLoader:
                 data['records'] = []
             elif not data['records']:
                 self.logger.warning("Empty records list in API response")
+            
+            # Cache the result
+            if len(self.cache) < 100:  # Limit cache size
+                self.cache[cache_key] = data
                 
             return data
             
