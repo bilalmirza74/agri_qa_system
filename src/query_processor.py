@@ -36,20 +36,37 @@ class QueryProcessor:
             'district': self._extract_districts,
             'commodity': self._extract_commodities
         }
+        
+        # Initialize entity caches
+        self._init_entity_caches()
+    
+    def _init_entity_caches(self):
+        """Initialize caches for entities to improve performance."""
+        self._states_cache = [
+            'andhra pradesh', 'arunachal pradesh', 'assam', 'bihar', 'chhattisgarh',
+            'goa', 'gujarat', 'haryana', 'himachal pradesh', 'jharkhand',
+            'karnataka', 'kerala', 'madhya pradesh', 'maharashtra', 'manipur',
+            'meghalaya', 'mizoram', 'nagaland', 'odisha', 'punjab', 'rajasthan',
+            'sikkim', 'tamil nadu', 'telangana', 'tripura', 'uttar pradesh',
+            'uttarakhand', 'west bengal'
+        ]
+        self._crops_cache = [
+            'rice', 'wheat', 'maize', 'sugarcane', 'cotton', 'jute', 'coffee', 'tea',
+            'rubber', 'tobacco', 'groundnut', 'mustard', 'sunflower', 'soybean',
+            'pulses', 'potato', 'onion', 'tomato', 'mango', 'banana', 'apple',
+            'grapes', 'orange', 'lemon'
+        ]
+        self._districts_cache = [
+            'mumbai', 'bengaluru', 'hyderabad', 'ahmedabad', 'chennai', 'kolkata',
+            'surat', 'pune', 'jaipur', 'lucknow', 'kanpur', 'nagpur', 'indore',
+            'thane', 'bhopal', 'visakhapatnam', 'patna', 'vadodara', 'ghaziabad',
+            'ludhiana', 'agra', 'nashik', 'faridabad', 'meerut', 'rajkot', 'varanasi'
+        ]
 
     def _extract_states(self, query: str) -> List[str]:
         """Extract state names from the query."""
-        indian_states = [
-            'andhra pradesh', 'arunachal pradesh', 'assam', 'bihar', 'chhattisgarh',
-            'goa', 'gujarat', 'haryana', 'himachal pradesh', 'jharkhand', 'karnataka',
-            'kerala', 'madhya pradesh', 'maharashtra', 'manipur', 'meghalaya', 'mizoram',
-            'nagaland', 'odisha', 'punjab', 'rajasthan', 'sikkim', 'tamil nadu',
-            'telangana', 'tripura', 'uttar pradesh', 'uttarakhand', 'west bengal',
-            'andaman and nicobar islands', 'chandigarh', 'dadra and nagar haveli and daman and diu',
-            'delhi', 'jammu and kashmir', 'ladakh', 'lakshadweep', 'puducherry'
-        ]
-        
-        return [state for state in indian_states if state.lower() in query.lower()]
+        query_lower = query.lower()
+        return [state for state in self._states_cache if state in query_lower]
     
     def _extract_years(self, query: str) -> List[int]:
         """Extract years from the query."""
@@ -58,23 +75,13 @@ class QueryProcessor:
     
     def _extract_crops(self, query: str) -> List[str]:
         """Extract crop names from the query."""
-        crops = [
-            'rice', 'wheat', 'maize', 'sugarcane', 'cotton', 'soybean', 'pulses',
-            'millets', 'oilseeds', 'jute', 'coffee', 'tea', 'spices', 'vegetables',
-            'fruits', 'potato', 'onion', 'tomato', 'mango', 'banana', 'grapes',
-            'apple', 'orange', 'groundnut', 'mustard', 'sunflower', 'safflower'
-        ]
-        return [crop for crop in crops if crop.lower() in query.lower()]
+        query_lower = query.lower()
+        return [crop for crop in self._crops_cache if crop in query_lower]
     
     def _extract_districts(self, query: str) -> List[str]:
         """Extract district names from the query."""
-        districts = [
-            'mumbai', 'bengaluru', 'hyderabad', 'ahmedabad', 'chennai', 'kolkata',
-            'surat', 'pune', 'jaipur', 'lucknow', 'kanpur', 'nagpur', 'indore',
-            'thane', 'bhopal', 'visakhapatnam', 'patna', 'vadodara', 'ghaziabad',
-            'ludhiana', 'agra', 'nashik', 'faridabad', 'meerut', 'rajkot', 'varanasi'
-        ]
-        return [district for district in districts if district.lower() in query.lower()]
+        query_lower = query.lower()
+        return [district for district in self._districts_cache if district in query_lower]
     
     def _extract_commodities(self, query: str) -> List[str]:
         """Extract commodity names from the query."""
@@ -280,8 +287,7 @@ class QueryProcessor:
                 results['market_prices'] = df
                 
         except Exception as e:
-            logger.error(f"Error executing query: {str(e)}")
-            logger.exception(e)
+            logger.exception("Error executing query")
             raise ValueError(f"Error processing your query: {str(e)}. Please try again with different parameters.")
             
         return results
@@ -377,19 +383,14 @@ class QueryProcessor:
                             
                         answer_parts.append(f"\n{commodity.title()}:")
                         
+                        # Optimized price column matching
                         price_columns = {}
+                        lower_cols = [col.lower() for col in df.columns]
                         for price_type in ['min', 'max', 'modal']:
-                            col = next(
-                                (col for col in df.columns 
-                                 if any(x in col.lower() 
-                                     for x in [f"{price_type}_price", f"{price_type}price", 
-                                              f"{price_type} price", f"{price_type}", 
-                                              f"price_{price_type}"])
-                                ),
-                                None
-                            )
-                            if col:
-                                price_columns[price_type] = col
+                            for i, col in enumerate(lower_cols):
+                                if any(term in col for term in [f"{price_type}_price", f"{price_type} price", f"{price_type}price"]):
+                                    price_columns[price_type] = df.columns[i]  # Use original column name
+                                    break
                                 print(f"Using {price_type} price column: {col}")
                         
                         for price_type in entities.get('price_types', []):
