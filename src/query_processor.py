@@ -167,23 +167,34 @@ class QueryProcessor:
             'where': [],
             'group_by': [],
             'order_by': [],
-            'limit': entities.get('limit', 10)
+            'limit': entities.get('limit', 10),
+            'state': None,
+            'district': None,
+            'commodity': None
         }
         
-        if entities['states']:
-            states = [f"State = '{state}'" for state in entities['states']]
-            query['where'].append(f"({' OR '.join(states)})")
+        try:
+            if entities.get('states'):
+                query['state'] = entities['states'][0]  # Take first state if multiple
+                states = [f"state = '{state}'" for state in entities['states']]
+                query['where'].append(f"({' OR '.join(states)})")
+                
+            if entities.get('districts'):
+                query['district'] = entities['districts'][0]  # Take first district if multiple
+                districts = [f"district = '{district}'" for district in entities['districts']]
+                query['where'].append(f"({' OR '.join(districts)})")
+                
+            if entities.get('crops'):
+                query['commodity'] = entities['crops'][0]  # Take first crop if multiple
+                crops = [f"commodity = '{crop}'" for crop in entities['crops']]
+                query['where'].append(f"({' OR '.join(crops)})")
             
-        if entities['districts']:
-            districts = [f"District = '{district}'" for district in entities['districts']]
-            query['where'].append(f"({' OR '.join(districts)})")
-            
-        if entities['crops']:
-            crops = [f"Commodity = '{crop}'" for crop in entities['crops']]
-            query['where'].append(f"({' OR '.join(crops)})")
-        
-        if entities['comparison'] and len(entities['states']) >= 2:
-            query['order_by'].append('State')
+            if entities.get('comparison') and len(entities.get('states', [])) >= 2:
+                query['order_by'].append('state')
+                
+        except Exception as e:
+            self.logger.error(f"Error generating SQL query: {str(e)}")
+            raise ValueError(f"Error processing your query. Please try again with different parameters.")
             
         return query
     
