@@ -192,8 +192,9 @@ def main():
         This is an intelligent Q&A system for Indian agricultural and climate data.
 
         ### Examples
-        - Show me the top 5 crops by production in Maharashtra
-        - What was the rainfall in Karnataka in 2020?
+        - Show me tomato prices in Maharashtra
+        - Compare rice prices between Punjab and Haryana
+        - What are the maximum prices for onions?
 
         ### Data Sources
         - Ministry of Agriculture & Farmers Welfare
