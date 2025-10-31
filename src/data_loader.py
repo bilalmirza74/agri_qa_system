@@ -1,4 +1,4 @@
-                                                                                                                                                                                                                                                                                                                                                                                                                                        import os
+import os
 import requests
 import pandas as pd
 from typing import Dict, List, Optional, Any
@@ -39,7 +39,7 @@ class APIConfig:
             'year': 'crop_year',
             'season': 'season',
             'crop': 'crop',
-            'area': 'area_',                                                                                                                                                                                                                                                                                        
+            'area': 'area_',
             'production': 'production_',
             'yield_value': 'yield_'
         },
@@ -90,7 +90,6 @@ class DataGovINLoader:
         self.data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
         os.makedirs(self.data_dir, exist_ok=True)
         self.logger = logging.getLogger(__name__)
-        self.cache = {}  # Simple in-memory cache for API responses
     
     def _make_api_request(self, data_source: DataSource, params: dict = None) -> dict:
         """Make a request to the data.gov.in API
@@ -118,34 +117,16 @@ class DataGovINLoader:
             
         url = f"{self.config.BASE_URL}/{resource_id}"
         
-        # Build request params correctly
-        request_params = params.copy() if params else {}
-        request_params.update({
+        params = params or {}
+        params.update({
             'format': 'json',
-            'api-key': self.api_key
+            'api-key': self.api_key,
+            'limit': 1000,
+            'filters': json.dumps(params.get('filters', {}))
         })
-        # Set default limit if not already set
-        if 'limit' not in request_params:
-            request_params['limit'] = 1000
-        
-        # Handle filters properly - convert to filters[field_name] format
-        if 'filters' in request_params and request_params['filters']:
-            filters_dict = request_params.pop('filters')
-            # Convert filters dict to filters[field_name] format
-            for key, value in filters_dict.items():
-                if value is not None:
-                    if isinstance(value, (list, tuple)):
-                        value = ','.join(map(str, value))
-                    request_params[f'filters[{key}]'] = str(value)
-        
-        # Check cache first
-        cache_key = str((data_source, tuple(sorted(request_params.items()))))
-        if cache_key in self.cache:
-            self.logger.info(f"Cache hit for {cache_key[:50]}...")
-            return self.cache[cache_key]
         
         self.logger.info(f"Making API request to: {url}")
-        self.logger.info(f"Params: {request_params}")
+        self.logger.info(f"Params: {params}")
         
         try:
             response = requests.get(
@@ -154,8 +135,8 @@ class DataGovINLoader:
                     'accept': 'application/json',
                     'X-API-KEY': self.api_key
                 },
-                params=request_params,
-                timeout=60  # Increased timeout
+                params=params,
+                timeout=30
             )
             response.raise_for_status()
             
@@ -167,10 +148,6 @@ class DataGovINLoader:
                 data['records'] = []
             elif not data['records']:
                 self.logger.warning("Empty records list in API response")
-            
-            # Cache the result
-            if len(self.cache) < 100:  # Limit cache size
-                self.cache[cache_key] = data
                 
             return data
             
@@ -219,47 +196,24 @@ class DataGovINLoader:
         if season:
             filters['season'] = season
             
-        # Fetch data with pagination
-        all_records = []
-        page_size = 10  # API appears to limit to 10 records per request
-        max_pages = min(limit // page_size + 1, 1000) if limit else 1000  # Safety limit
+        params = {
+            'limit': min(limit, 10000),
+            'filters': filters
+        }
         
-        self.logger.info(f"Fetching agriculture data with filters: {filters}, limit: {limit}")
+        self.logger.info(f"Fetching agriculture data with params: {params}")
         
         try:
-            for offset in range(0, max_pages * page_size, page_size):
-                params = {
-                    'limit': page_size,
-                    'offset': offset,
-                    'filters': filters
-                }
-                
-                response = self._make_api_request(DataSource.CROP_PRODUCTION, params)
-                
-                if not response or 'records' not in response or not response['records']:
-                    break
-                
-                page_records = response['records']
-                all_records.extend(page_records)
-                
-                self.logger.info(f"Received {len(page_records)} records at offset {offset}")
-                
-                # If we got fewer than page_size, we've reached the end
-                if len(page_records) < page_size:
-                    break
-                
-                # Check if we've reached the requested limit
-                if limit and len(all_records) >= limit:
-                    all_records = all_records[:limit]
-                    break
+            response = self._make_api_request(DataSource.CROP_PRODUCTION, params)
             
-            self.logger.info(f"Total records fetched: {len(all_records)}")
-            
-            if not all_records:
+            if not response or 'records' not in response or not response['records']:
                 self.logger.warning("No records found in API response")
                 return pd.DataFrame()
+                
+            records = response['records']
+            self.logger.info(f"Received {len(records)} records from API")
             
-            df = pd.DataFrame(all_records)
+            df = pd.DataFrame(records)
             
             self.logger.info(f"Columns in response: {df.columns.tolist()}")
             
