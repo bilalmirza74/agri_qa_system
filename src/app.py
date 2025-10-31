@@ -192,9 +192,9 @@ def main():
         This is an intelligent Q&A system for Indian agricultural and climate data.
 
         ### Examples
-        - Show me tomato prices in Maharashtra
+        - Show me Banana prices in Andhra Pradesh
         - Compare rice prices between Punjab and Haryana
-        - What are the maximum prices for onions?
+        - What are the maximum prices for Tomato?
 
         ### Data Sources
         - Ministry of Agriculture & Farmers Welfare
