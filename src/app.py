@@ -193,8 +193,8 @@ def main():
         This is an intelligent Q&A system for Indian agricultural and climate data.
 
         ### Examples
-        - Show me the top 5 crops by production in Maharashtra
-        - What was the rainfall in Karnataka in 2020?
+        - Show me the top 5 crops by production in Kerala
+        - What was the top crops in Haryana last year?
 
         ### Data Sources
         - Ministry of Agriculture & Farmers Welfare
