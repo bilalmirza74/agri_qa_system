@@ -193,8 +193,9 @@ def main():
         This is an intelligent Q&A system for Indian agricultural and climate data.
 
         ### Examples
+        - What was the top 3 crops in Haryana last year?
+        - Compare average crops between Kerala and Tamil Nadu
         - Show me the top 5 crops by production in Kerala
-        - What was the top crops in Haryana last year?
 
         ### Data Sources
         - Ministry of Agriculture & Farmers Welfare
@@ -205,8 +206,7 @@ def main():
         st.subheader("Sample Queries")
         sample_queries = [
             "Show me the top 5 crops by production in Maharashtra",
-            "What was the rainfall in Karnataka in 2020?",
-            "Show wheat production trend in Uttar Pradesh for last 5 years",
+            "What was the rainfall in Karnataka in 2025?",
             "Compare average rainfall between Kerala and Tamil Nadu"
         ]
         
